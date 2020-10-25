@@ -7,32 +7,33 @@ Description:
 Run in a directory of downloaded files. The script will create or open a log 
 file with a list of all the files that were previously downloaded. It will 
 check all the files in the current folder against that list. If the file 
-already exists with the same filename and file size the new file is a 
+exists in the list with the same filename and file size, the new file is a
 duplicate. It will be moved to a file called ./duplicates 
 
 If it is not in the list it will be added. The updated log file will be saved 
 in the same folder.
 
-Once the script has been run, all the files still in the original folder are 
+Once the script has been run, all the files still in the original folder did
+not appear in the log file of files downloaded before. This means they are
 new and can be moved elsewhere and renamed. If you accidentally download it
 again, this script will keep you from keeping the duplicate.
 
-This way I can keep putting downloaded files where I want them instead of
-keeping them in a separate area forever with names I don't want.
+This way I can keep taking downloaded files and move them elsewhere and rename
+them instead of keeping them in a separate area forever with names I don't want.
 
 SIDE EFFECTS:
-Script maintains a list of files that have already been downloaded in a file
-specified by the user. Upon running, a .bak version is created should you need
-to revert your log.
+* Script maintains a list of files in the current folder that have already been
+  downloaded in a logfile specified by the user.
+* Upon running, a .bak version is created should you need to revert your log.
+* If you re-run the script without moving your files, they'll be considered
+  duplicates and will be moved into the /duplicates folder. Don't do that.
 
 LIMITATIONS:
 * Script must exist the folder where the script is run
-* Only checks filename for dup, doesn't compare file size
 * If the file is already in /duplicates the script will fail if it tries to
   to move another file with the same name into the /duplicates folder
 
 FUTURE:
-* Add support for file size
 * Add support for duplication in the /duplicates folder
 """
 
@@ -127,7 +128,7 @@ shutil.copyfile(lsLogFileName, lsBackupFileName)
 with io.open(lsLogFileName, 'w', encoding="utf-8") as lcNewLogFileHandle:
     # print(lcAlreadyDownloadedFileDictionary, file=lcNewLogFileHandle)
     for lsKey in lcAlreadyDownloadedFileDictionary.keys():
-        laCurrentKeySplit = lsKey .split('?') 
+        laCurrentKeySplit = lsKey.split('?')
         lsTempString = laCurrentKeySplit[0] + ',' + str(lcAlreadyDownloadedFileDictionary[lsKey])
         print(lsTempString, file=lcNewLogFileHandle)
 
