@@ -1,24 +1,29 @@
 """
 Name: check_duplicates
-Version: 0.1
-Date: 24Oct20
+Version: 0.2
+Date: 25Oct20
 
 Description:
-Run in a directory of downloaded files. The script will open a file with a
-list of all the files that were previously downloaded. It will check all the
-files in the current folder against that list. If the file already exists the
-new file is a duplicate. It will be moved to a file called ./duplicates
-If it is not in the list it will be added. The updated file will be saved in
-the same folder.
+Run in a directory of downloaded files. The script will create or open a log 
+file with a list of all the files that were previously downloaded. It will 
+check all the files in the current folder against that list. If the file 
+already exists with the same filename and file size the new file is a 
+duplicate. It will be moved to a file called ./duplicates 
 
-Once the script has been run, all the files still in the folder are new and
-can be saved into the archive.
+If it is not in the list it will be added. The updated log file will be saved 
+in the same folder.
+
+Once the script has been run, all the files still in the original folder are 
+new and can be moved elsewhere and renamed. If you accidentally download it
+again, this script will keep you from keeping the duplicate.
 
 This way I can keep putting downloaded files where I want them instead of
-keeping them in a separate area forever.
+keeping them in a separate area forever with names I don't want.
 
-Maintains a list of files that have already been downloaded in a file
-called history.log.
+SIDE EFFECTS:
+Script maintains a list of files that have already been downloaded in a file
+specified by the user. Upon running, a .bak version is created should you need
+to revert your log.
 
 LIMITATIONS:
 * Script must exist the folder where the script is run
@@ -33,6 +38,7 @@ FUTURE:
 
 # The log file contains all the files downloaded from a location
 # format:
+import io
 import os
 import shutil
 import sys
@@ -65,8 +71,11 @@ lcAlreadyDownloadedFileDictionary = {}
 
 # read the contents into a dictionary
 for lsCurrentReadLine in lcLogFileHandle:
-    laCurrentLineSplit = lsCurrentReadLine.strip().split(',')  # split around the = sign
-    print("key: ", laCurrentLineSplit[0], " value: ", laCurrentLineSplit[1])
+    laCurrentLineSplit = lsCurrentReadLine.strip().split(',')  # split on comma delimiter
+    # Build a key of filename_filesize so we can account for the same name but different sizes
+    # This will be undone before writing the file back out so the user won't even see it.
+    lsTempKeyString = laCurrentLineSplit[0] + "?" + str(laCurrentLineSplit[1])
+    print("key: ", lsTempKeyString, " value: ", laCurrentLineSplit[1])
     if len(laCurrentLineSplit) > 1:  # we have the = sign in there
         lcAlreadyDownloadedFileDictionary[laCurrentLineSplit[0]] = laCurrentLineSplit[1]
 
@@ -82,14 +91,19 @@ laListOfFiles = os.listdir(lsFolderName)
 for lsFileEntry in laListOfFiles:
     sys.stdout.write("\nCurrent file: ")
     sys.stdout.write(lsFileEntry)
-    # Don't index our log files or subdirectories
+    # Don't index our script, log files or subdirectories
     if (lsFileEntry == lsBackupFileName or lsFileEntry == lsLogFileName
             or lsFileEntry == "check_duplicates.py"):
         continue
     if (os.path.isdir(lsFileEntry)):
         sys.stdout.write(" is Folder")
         continue
-    if lsFileEntry in lcAlreadyDownloadedFileDictionary.keys():
+    # We're going to process the file so get the size and build the composite key
+    # We use a question mark for our separator because it's not legal in a filename
+    # so it should never already exist in the filename we're using.
+    lnFileSize = os.path.getsize(lsFileEntry)
+    lsTempKeyString = lsFileEntry + "?" + str(lnFileSize)
+    if lsTempKeyString in lcAlreadyDownloadedFileDictionary.keys():
         lnDupFiles = lnDupFiles + 1
         sys.stdout.write(" is Duplicate --> Move to /duplicates")
         lsDupFolderName = "duplicates"
@@ -98,11 +112,9 @@ for lsFileEntry in laListOfFiles:
         shutil.move(lsFileEntry, lsDupFolderName)
     else:
         lnNewFiles = lnNewFiles + 1
-        sys.stdout.write(" NEW  ")
-        # TODO: Add the file size to the check just in case
-        lnFileSize = os.path.getsize(lsFileEntry)
-        print("key: ", lsFileEntry, " value: ", lnFileSize)
-        lcAlreadyDownloadedFileDictionary[lsFileEntry] = lnFileSize
+        sys.stdout.write(" NEW\n")
+        print("\t-->key: ", lsTempKeyString, "\n\t-->value: ", lnFileSize)
+        lcAlreadyDownloadedFileDictionary[lsTempKeyString] = lnFileSize
 
 # Save dictionary back out to file
 # Create backup
@@ -111,11 +123,12 @@ if os.path.isfile(lsBackupFileName):
 
 shutil.copyfile(lsLogFileName, lsBackupFileName)
 
-# write current dictionary
-with open(lsLogFileName, 'w') as lcNewLogFileHandle:
+# write current dictionary. Use io.open() to avoid charmap codec can't encode errors
+with io.open(lsLogFileName, 'w', encoding="utf-8") as lcNewLogFileHandle:
     # print(lcAlreadyDownloadedFileDictionary, file=lcNewLogFileHandle)
     for lsKey in lcAlreadyDownloadedFileDictionary.keys():
-        lsTempString = lsKey + ',' + str(lcAlreadyDownloadedFileDictionary[lsKey])
+        laCurrentKeySplit = lsKey .split('?') 
+        lsTempString = laCurrentKeySplit[0] + ',' + str(lcAlreadyDownloadedFileDictionary[lsKey])
         print(lsTempString, file=lcNewLogFileHandle)
 
 # Print stats
