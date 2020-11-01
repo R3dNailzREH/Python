@@ -1,7 +1,7 @@
 """
 Name: check_duplicates
-Version: 0.2
-Date: 25Oct20
+Version: 1.0
+Date: 31Oct20
 
 Description:
 Run in a directory of downloaded files. The script will create or open a log 
@@ -25,16 +25,17 @@ SIDE EFFECTS:
 * Script maintains a list of files in the current folder that have already been
   downloaded in a logfile specified by the user.
 * Upon running, a .bak version is created should you need to revert your log.
-* If you re-run the script without moving your files, they'll be considered
-  duplicates and will be moved into the /duplicates folder. Don't do that.
+* All files that appear in the log AND have the same file size will be moved to
+  /duplicates
+* All files NOT in the log OR with different sizes will be moved to /new_files
 
 LIMITATIONS:
 * Script must exist the folder where the script is run
-* If the file is already in /duplicates the script will fail if it tries to
-  to move another file with the same name into the /duplicates folder
+* If the file is already in /duplicates or /new_files the script will fail if it
+  tries to to move another file with the same name into the /duplicates folder
 
 FUTURE:
-* Add support for duplication in the /duplicates folder
+* Add support for duplication in the target folders
 """
 
 # The log file contains all the files downloaded from a location
@@ -66,6 +67,14 @@ lsBackupFileName = lsLogFileName + '.bak'
 lnNewFiles = 0
 lnDupFiles = 0
 
+# Create the target folders. /new for files not in log, /dups if they are
+lsDupFolderName = "duplicates"
+if not os.path.isdir(lsDupFolderName):
+    os.mkdir(lsDupFolderName)
+lsNewFolderName = "new_files"
+if not os.path.isdir(lsNewFolderName):
+    os.mkdir(lsNewFolderName)
+
 # open the file with a list of everything we downloaded already
 lcLogFileHandle = open(lsLogFileName, 'r')
 lcAlreadyDownloadedFileDictionary = {}
@@ -96,7 +105,7 @@ for lsFileEntry in laListOfFiles:
     if (lsFileEntry == lsBackupFileName or lsFileEntry == lsLogFileName
             or lsFileEntry == "check_duplicates.py"):
         continue
-    if (os.path.isdir(lsFileEntry)):
+    if ( os.path.isdir(lsFileEntry) ):
         sys.stdout.write(" is Folder")
         continue
     # We're going to process the file so get the size and build the composite key
@@ -107,14 +116,12 @@ for lsFileEntry in laListOfFiles:
     if lsTempKeyString in lcAlreadyDownloadedFileDictionary.keys():
         lnDupFiles = lnDupFiles + 1
         sys.stdout.write(" is Duplicate --> Move to /duplicates")
-        lsDupFolderName = "duplicates"
-        if not os.path.isdir(lsDupFolderName):
-            os.mkdir(lsDupFolderName)
         shutil.move(lsFileEntry, lsDupFolderName)
     else:
         lnNewFiles = lnNewFiles + 1
-        sys.stdout.write(" NEW\n")
-        print("\t-->key: ", lsTempKeyString, "\n\t-->value: ", lnFileSize)
+        sys.stdout.write(" NEW --> Move to /new_files")
+        shutil.move(lsFileEntry, lsNewFolderName)
+        print("\n\t-->key: ", lsTempKeyString, "\n\t-->value: ", lnFileSize)
         lcAlreadyDownloadedFileDictionary[lsTempKeyString] = lnFileSize
 
 # Save dictionary back out to file
